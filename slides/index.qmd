@@ -1,0 +1,344 @@
+---
+title: "The `Future` of `NA` Data"
+date: "`rstudio::conf(2022)`"
+author: "Nicholas Tierney"
+institute: Telethon Kids Institute
+format: 
+  revealjs:
+    theme: [blood, extra.scss]
+editor: visual
+execute: 
+  echo: false
+  warning: true
+---
+
+::: {.notes}
+
+Hi, my name is Nick Tierney, and I'm going to talk about the future missing data. 
+
+:::
+
+# I hate missing data
+
+::: {.notes}
+
+I fully hate missing data. It disrupts your data analysis, because you need to stop, and work out how much is missing, and think: why it is missing, why!?
+
+:::
+
+## ~~Redacted~~
+
+::: {.fragment .fade-up}
+> I fully hate missing data. It disrupts your data analysis, because you need to stop, and work out how much is missing, and think: why it is missing, why!?
+:::
+
+::: {.fragment .fade-in-then-out}
+> I ~~**redacted**~~ hate missing data. It ~~**redacted**~~ your data analysis. Because ~~**redacted**~~, and work out how ~~**redacted**~~ is missing and think: why ~~**redacted**~~ ~~**redacted**~~ ~~**redacted**~~why!?
+:::
+
+::: {.notes}
+
+Missing data contorts messages. I mean, imagine what I just said then was bleeped out, you might get a different idea of what I was saying:
+I redacted hate missing data. It redacted your data analysis. Because redacted, and work out how redacted is missing and think: why redacted redacted redacted why!?
+
+
+:::
+
+```{r}
+#| label: library
+#| echo: false
+#| warning: false
+library(tidyverse)
+library(visdat)
+library(naniar)
+```
+
+# I ❤️ Missing Data
+
+::: {.notes}
+But i've grown to love missing data. Understanding it is hard, but it adds an extra challenge, a little bit of spice, to a data analysis. 
+
+:::
+
+## {background-image="figs/hex-visdat-and-naniar.png" background-size="contain"}
+
+::: {.notes}
+And I've written two R packages to help you explore your data, and explore missingness: visdat, and naniar.
+:::
+
+# Plan
+
+1. Explore missing data: Overview --> Relationship
+
+2. Brief tour of missing data visualisations.
+
+::: {.notes}
+
+And today, I'm going to talk about two things:
+A principle of going from overview to relationship to explore missing data
+A brief tour of missing data visualisations. Emphasis on the brief. I won't have time to explore them all in detail.
+
+:::
+
+
+## Overview {.center}
+
+```{r}
+#| label: vis-miss-oceanbuoys
+#| output-location: fragment
+#| echo: true
+vis_miss(oceanbuoys)
+```
+
+::: {.notes}
+
+The first one I'd recommend is vis_miss. We are looking at a heatmap of the missingness of your data - as if you are looking at your data from a birds eye view. The rows and columns of your data are shown as either missing - in black, or present - in gray.
+
+What we learn from this is that the variables with the most missings are “air_temp_c” and “humidity”, but there are some missing values that go missing at the same time across these variables - which you can see as these black horizontal lines stretching across multiple variables. 
+
+We also get information on the percent of missing data in each of the variables, with air temperature and humidity having 11 and 12 % missing data, respectively.
+
+Now, we go from the overview, to the relationship - in this case, the relationship between these two variables.
+
+:::
+
+
+## ~~Missing~~ Relationship
+
+```{r}
+#| label: oceanbuoys-geom-point-warning
+#| output-location: fragment
+#| echo: true
+#| fig.height: 4
+#| fig.width: 9
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  geom_point()
+```
+
+::: {.notes}
+We can explore the relationship in a scatterplot using ggplot2. And constructing a ggplot call like so, of humidity and air temperature - we encounter a substantial problem, which is that the missing values are removed. Although I must say that  it does this loudly, which is very useful!
+
+:::
+
+## Missing Relationship
+
+```{r}
+#| label: oceanbuoys-geom-miss-point
+#| output-location: fragment
+#| code-line-numbers: "2"
+#| echo: true
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  geom_miss_point()
+```
+
+::: {.notes}
+We can instead use the function `geom_miss_point()` from naniar, which imputes the values below the range of the data, so that they show up on the plot, but in a different position, and also a different colour. Let's break this down. Let's look at each axis, one at a time. 
+
+:::
+
+## Missing relationship
+
+``` r
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  geom_miss_point()
+```
+
+```{r}
+#| label: oceanbuoys-geom-miss-point-x-axis
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  annotate("rect", xmin = 20, xmax = Inf, ymin = -Inf, ymax = 71, alpha = 0.75) +
+  geom_miss_point()
+```
+
+::: {.notes}
+
+The values in red on the X axis are air temperature values, which are missing for humidity. We see that this distribution of values here matches this first cluster on the left.
+
+:::
+
+## Missing relationship
+
+``` r
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  geom_miss_point()
+```
+
+```{r}
+#| label: oceanbuoys-geom-miss-point-y-axis
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  annotate("rect", xmin = -Inf, xmax = 21, ymin = -Inf, ymax = Inf, alpha = 0.75) +
+  geom_miss_point()
+```
+
+::: {.notes}
+
+And on the Y axis are the humidity values that have missing air temperature values - interesting again is that this cluster of values seems to match the second cluster. So, what we learn from this is that the missingness is aligned with these two clusters of the air temperature and humidity values. 
+
+Let's explore this data by facetting the data along another column: year.
+
+
+:::
+
+## Missingness relationship + explore
+
+```{r}
+#| label: oceanbuoys-geom-miss-point-facet
+#| output-location: fragment
+#| code-line-numbers: "3"
+#| echo: true
+#| fig.width: 9
+#| fig.height: 4
+ggplot(oceanbuoys, aes(x = air_temp_c, y = humidity)) + 
+  geom_miss_point() +
+  facet_wrap(~year)
+```
+
+::: {.notes}
+
+This is an important feature of this geom, is that it allows you to construct ggplots as you would normally - we can add some regular code to facet by year. What we learn from this, is that the missingness of each of these appears to be aligned by year, very neat!
+
+
+:::
+
+# Moar missingness vis
+
+::: {.notes}
+Now, some more missing data visualisations
+:::
+
+## Missingness in Variables
+
+```{r}
+#| label: oceanbuoys-miss-var
+#| echo: true
+gg_miss_var(oceanbuoys)
+```
+
+::: {.notes}
+Gg_miss_var to quickly show the amount of missings in variables
+
+:::
+
+## Missingness in Variables %
+
+::: {.notes}
+You can even show the percentage of missing
+:::
+
+```{r}
+#| label: oceanbuoys-miss-var-pct
+#| echo: true
+gg_miss_var(oceanbuoys, show_pct = TRUE)
+```
+
+## Missingness in Variables + facetted
+
+::: {.notes}
+And facet by another variable to explore - hey look, we found it again, the pattern of missing values for each year.
+:::
+```{r}
+#| label: oceanbuoys-miss-var-facet
+#| echo: true
+gg_miss_var(oceanbuoys, facet = year)
+```
+
+## Combinations of missings
+
+::: {.notes}
+Use gg_miss_upset to explore combinations of missingness in a simple datases
+:::
+
+```{r}
+#| label: oceanbuoys-upset
+#| echo: true
+gg_miss_upset(oceanbuoys)
+```
+
+## (Complex) Combinations of missings
+
+::: {.notes}
+ or a more complex one.
+:::
+
+```{r}
+#| label: riskfactors-upset
+#| echo: true
+gg_miss_upset(riskfactors)
+```
+
+## `gg_miss_fct()`
+
+::: {.notes}
+And we can use gg_miss_(factor) to explore the percent of missingness of all variables grouped by another factor. Here we see the percent of missing data over all variables for different marital statuses. 
+
+:::
+```{r}
+#| label: riskfactors-miss-fct
+#| echo: true
+gg_miss_fct(x = riskfactors, fct = marital)
+```
+
+# Future work: moar `geom` s
+
+::: {.notes}
+With some help from the R Consortium, we'll be adding some more tools for visualising missing data. I'll briefly talk about just two new additions that I think will be really cool:
+
+:::
+
+## Future work: `geom_miss_histogram()`
+
+```{r}
+#| label: geom-miss-histogram
+#| warning: false
+oceanbuoys %>% nabular() %>% impute_below_all() %>%  ggplot(aes(x = air_temp_c)) + geom_histogram(aes(fill = air_temp_c_NA)) + scale_fill_brewer(palette = "Dark2", labels = c("Missing", "Not Missing")) + labs(fill = "missing")
+```
+
+::: {.notes}
+Geom_miss_histogram will show the amount of missing values alongside a univariate distribution, by imputing it below the range of the data. In this plot, this gives us a general sense of the amount of missing data in the air t emperature data.
+
+:::
+
+## Future work: `geom_imputed_point()`
+
+```{r}
+#| label: geom-imputed-point
+#| warning: false
+oceanbuoys %>% 
+  nabular() %>% 
+  impute_mean_all() %>% 
+  add_label_shadow(air_temp_c,
+                   humidity,
+                   missing = "Imputed",
+                   complete = "Data") %>% 
+  ggplot(aes(x = air_temp_c,
+             y = humidity,
+             colour = any_missing)) + 
+  geom_point() + 
+  scale_colour_brewer(palette = "Dark2", 
+                      labels = c("Complete", "Imputed")) + 
+  labs(colour = "Imputed")
+```
+
+::: {.notes}
+geom_imputed_point() will take in a dataset and identify any imputed values, and will also show any values that are still missing
+
+:::
+
+# A book: "The Missing Book"
+
+Nicholas Tierney & **Allison Horst**
+
+::: {.notes}
+And in some very exciting news, I'd like to introduce the first draft of a book that Allison Horst and I are working on: “The Missing Book”. 
+
+It contains exercises on missing data, and general workflows on exploring missing values and imputations. The aim is to have a general book to guide you through exploring data, with some case studies of real missing data.
+
+:::
+
+# The Future of Missing Data is `presence`
+
+::: notes
+I'll wrap up now by saying that the future of missing data is it's presence in software, in data analysis workflows, in tutorials, and in how we think about data generally. 
+
+Funnily enough, missing data is almost always present. So let's make sure we don't forget it.
+:::
